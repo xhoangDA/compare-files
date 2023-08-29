@@ -9,8 +9,8 @@ def compare():
     algorithms = compareAlgorithms
     TerminalActions = terminalActions
 
-    filesDir1 = algorithms.getFiles(argValues[0])
-    filesDir2 = algorithms.getFiles(argValues[1])
+    filesDir1 = algorithms.getSMBFiles(argValues[0])
+    filesDir2 = algorithms.getSMBFiles(argValues[1])
 
     result = algorithms.compareList(filesDir1, filesDir2)
     algorithms.writeToExcelFile(filesDir1, filesDir2, result, argValues[0], argValues[1], argValues[2], argValues[3], argValues[4])
