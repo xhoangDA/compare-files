@@ -57,8 +57,8 @@ class arguments():
             parser.print_help()
             sys.exit(1)
 
-        if not current:
-            print("\nError: The path to the source code of the current version required!\n")
+        if not current and not update:
+            print("\nError: The path to the source code of the current and release version required!\n")
             parser.print_help()
             sys.exit(1)
         if not update:
