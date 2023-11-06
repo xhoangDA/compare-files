@@ -17,7 +17,6 @@ def connectSMB(filePath):
 # try:
     smbclient.ClientConfig(username=smb_username, password=smb_password)
 # except Exception as e:
-    # print(e)
  
 def getSMBFiles(dir_path):
     listFiles = []
