@@ -31,27 +31,34 @@ class arguments():
             help = "The product name. Example: MISA AMIS"
         )
         parser.add_argument(
-            "--output",
-            "-o",
-            default = "result.xlsx",
+            "--authen",
+            "-a",
             type=str,
-            help = "The location file to write the report output to (default: result.xlsx)"
+            help = "Path to credential file (JSON format). Example: smb_config.json"
         )
-
+        # parser.add_argument(
+        #     "--output",
+        #     "-o",
+        #     default = "result",
+        #     type=str,
+        #     help = "The location file to write the report output to (default: \\\\storage1\\DU_LIEU_CHUYEN_RA_NGOAI\\Compare_file)"
+        # )
         argsList = []
         args = vars(parser.parse_args())
         current = args["current"]
         update = args["update"]
         version = args["version"]
         name = args["name"]
+        authen = args["authen"]
         if args["name"]: name = ' '.join(args["name"])
-        output = args["output"]
+        # output = args["output"]
         
         argsList.append(current)
         argsList.append(update)
         argsList.append(version)
         argsList.append(name)
-        argsList.append(output)
+        argsList.append(authen)
+        # argsList.append(output)
 
         if len(argv) < 1:
             parser.print_help()
@@ -71,6 +78,10 @@ class arguments():
             sys.exit(1)
         if not name:
             print("\nError: The product name required!\n")
+            parser.print_help()
+            sys.exit(1)
+        if not authen:
+            print("\nError: The SMB credential file required!\n")
             parser.print_help()
             sys.exit(1)
         return argsList

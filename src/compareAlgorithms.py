@@ -5,19 +5,25 @@ from openpyxl.utils import get_column_letter
 import smbclient
 import magic
 import tempfile
+import time
+import datetime
+import json
 
-# from smb.SMBHandler import SMBHandler
-# from src import banner
-
-smbclient.ClientConfig(username='dxhoang', password='Ynggld@123')
-
+def connectSMB(filePath):
+    with open(filePath, 'r') as config_file:
+        config_data = json.load(config_file)
+    smb_username = config_data["username"]
+    smb_password = config_data["password"]
+# try:
+    smbclient.ClientConfig(username=smb_username, password=smb_password)
+# except Exception as e:
+    # print(e)
+ 
 def getSMBFiles(dir_path):
     listFiles = []
     if dir_path[-1] != '/' or dir_path[-1] != '\\':
         dir_path = dir_path + '/'
-    # dir_path = dir_path.replace('\\\\', '/')
-    print(dir_path)
-    # try:
+    dir_path = dir_path.replace('\\', '/')
     for path, subdirs, files in smbclient.walk(dir_path):
         for name in files:
             filePath = os.path.join(path, name)
@@ -26,22 +32,10 @@ def getSMBFiles(dir_path):
             # hàm lấy giá trị filesize (đơn vị byte)
             fileSize = smbclient.stat(filePath).st_size
             fileExt = fileExtension(filePath)
-            fileType = detectHeaderFile(filePath)
+            fileType = detectHeaderSMBFile(filePath)
             element = [pathWithoutFilename, name, relativePathDir, fileSize, fileExt, fileType]
             listFiles.append(element)
-        # listToStr = '\n'.join([str(elem) for elem in listFiles])
-        # with open("temp.txt", 'w', encoding="utf-8") as f:
-        #     f.write(listToStr)
-        # print(list(enumerate(listFiles)))
-    # except FileNotFoundError:
-    #     print(f"The directory {dir_path} does not exist")
-    # except PermissionError:
-    #     print(f"Permission denied to access the directory {dir_path}")
-    # except OSError as e:
-    #     print(f"An OS error occurred: {e}")
     return listFiles
-# Note: Chưa xử lý đc chỗ điều kiện exception
-
 
 # function to get all files recursively on the diretory 
 def getFiles(dir_path):
@@ -57,7 +51,7 @@ def getFiles(dir_path):
                 fileSize = os.stat(filePath).st_size
                 fileExt = fileExtension(filePath)
                 fileType = detectHeaderFile(filePath)
-                element = [ pathWithoutFilename, name, relativePathDir, fileSize, fileExt, fileType]
+                element = [pathWithoutFilename, name, relativePathDir, fileSize, fileExt, fileType]
                 listFiles.append(element)
     except FileNotFoundError:
         print(f"The directory {dir_path} does not exist")
@@ -93,7 +87,7 @@ def compareList(list1, list2):
                     checkSize = checkFilesWithLargeFilesize(status, changedSize, oldSizeKB)
                     checkType = checkFileType(i[4],i[5])
                     # Đổi đơn vị từ byte thành KB
-                    if checkSize != "": plus = ' + '
+                    if checkSize != "" and checkType != '': plus = ' + '
                     note = checkType + plus + checkSize
                     element =  [serial, j[2], status, oldSizeKB, newSizeKB, changedSize, "Thay đổi thông tin", note, i[4], i[5]]
                     # element =  [serial, j[2], status, oldSizeKB, newSizeKB, changedSize, "Thay đổi thông tin", note]
@@ -101,15 +95,15 @@ def compareList(list1, list2):
                     cloneList1.remove(j)
                     break
             else:
-                # Kiểm tra filetype
-                checkType = checkFileType(i[4],i[5])
                 if j == cloneList1[-1]:
+                    # Kiểm tra filetype
+                    checkType = checkFileType(i[4],i[5])
                     serial += 1
-                    status = "Thêm mới" 
+                    status = "Thêm mới"
                     plus = ""
                     filesizeKB = round (i[3] / 1024, 1)
                     checkSize = checkFilesWithLargeFilesize(status, i[3], 0)
-                    if checkSize != "": plus = ' + '
+                    if checkSize != "" and checkType != '': plus = ' + '
                     note = checkType + plus + checkSize
                     # note = checkFilesWithLargeFilesize(status, i[3], None)
                     element =  [serial, i[2], status, None, filesizeKB, i[3], "Tạo mới", note, i[4], i[5]]
@@ -120,7 +114,7 @@ def compareList(list1, list2):
     for k in cloneList1:
         serial += 1
         filesizeKB = round (k[3] / 1024, 1)
-        element =  [serial, k[2],"Xóa", filesizeKB, None, -k[3], "Không còn sử dụng", '', k[4], k[5]]
+        element =  [serial, '\\' + k[2],"Xóa", filesizeKB, None, -k[3], "Không còn sử dụng", '', k[4], k[5]]
         result.append(element)
 
     return result
@@ -140,16 +134,14 @@ def totalSize(listFiles):
 def checkFilesWithLargeFilesize(status, sizeChange, oldSize):
     warning = ""
     sizeChangeKB = round(sizeChange / 1024, 2)
-    if status == "Thêm mới":
-            if sizeChangeKB > 1024:
-               warning = "File có kích thước lớn: " +  '{:.2f}'.format(sizeChangeKB) + " (KB)"
-    elif status == "Sửa":
-            # If the file already exists, check if the file size after editing is more than 15%, then give a warning
-            if (oldSize >= 1024 and  sizeChangeKB > (oldSize * 15 / 100)) or (oldSize < 1024 and sizeChangeKB > (oldSize * 50 / 100)):
+    if status == "Sửa":
+            # If the file already exists, check if the file size after editing is more than 10KB, then give a warning
+            if sizeChangeKB > 10:
                 warning = "File sau khi chỉnh sửa có kích thước lớn hơn nhiều so với file cũ: " + '{:.2f}'.format(sizeChangeKB) + " (KB)"
     return warning
 
-def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, productName, outputFile):
+def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, productName):
+    curent_date = datetime.date.today().strftime("%d%m%Y")
     wb = openpyxl.Workbook()
     # wb = openpyxl.load_workbook(outputFile)
     ws = wb.active
@@ -157,7 +149,10 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
     ws.merge_cells("A1:H1")
     ws["A2"] = "Phiên bản:"
     ws["B2"] = dir1
-    ws["F2"] = "Số files: " +  countFiles(filesDir1) + " - Dung lượng: " + totalSize(filesDir1) + "MB"
+    if dir1 == [['', '', '', 0, '', '']]:
+        ws["F2"] = "Số files: 0 - Dung lượng: " + totalSize(filesDir1) + "MB"
+    else:
+        ws["F2"] = "Số files: " +  countFiles(filesDir1) + " - Dung lượng: " + totalSize(filesDir1) + "MB"
     ws["B3"] = dir2
     ws["F3"] = "Số files: " +  countFiles(filesDir2) + " - Dung lượng: " + totalSize(filesDir2) + "MB"
     # fieldNames = ["STT", version, "Tình trạng", "Dung lượng cũ (KB)", "Dung lượng mới (KB)", "Chênh lệch (B)", "Mục đích sử dụng", "Ghi chú"]
@@ -178,6 +173,7 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
     bold12 = Font(bold=True, size = 12)
     gray_background = PatternFill('solid', start_color = 'B1B1B2')
     pink_background = PatternFill('solid', start_color = 'FFCBCB')
+    yellow_background = PatternFill('solid', start_color = 'FFFFD1')
 
     ws["A1"].font = big_bold_blue_font
     ws["A1"].alignment = center_aligned_text
@@ -195,16 +191,17 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
     
     # Highligh suspicious files
     for i in range (5, ws.max_row+1):
-        if ws['H' + str(i)].value != '':
+        if ws['H' + str(i)].value == 'Không phân tích được file':
+            for cell in ws[i]:
+                cell.fill = yellow_background
+        elif ws['H' + str(i)].value != '':
             for cell in ws[i]:
                 cell.fill = pink_background
 
     # Custom column width size
     ws.column_dimensions["A"].width = len(ws["A2"].value) + 2
 
-
     columns = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
-    # columns = ['B', 'C', 'D', 'E', 'F', 'G', 'H']
     for index, column_letter in enumerate(columns):
         values = [ws.cell(row=i,column=index+2).value for i in range(1,ws.max_row+1)]
         max_width = 0
@@ -213,30 +210,80 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
             elif max_width <= len(str(value)): max_width = len(value) + 8
         ws.column_dimensions[str(column_letter)].width = max_width
     
-    wb.save(filename=outputFile)
+    filename = '%s_%s_%s.xlsx' % (productName,version,curent_date)
+    wb.save(filename)
+    saveExcelToSMB(filename, r'\\storage1\DU_LIEU_CHUYEN_RA_NGOAI\Compare_file', productName)
+    # saveExcelToSMB(filename, r'\\10.1.36.8\Shared\LAB_TO_LOCAL\DXHOANG', productName)
+
+def detectHeaderSMBFile(pathToFile):
+    # fileType = magic.from_file(pathToFile)
+    # temp = tempfile.NamedTemporaryFile(prefix='compare_tool')
+    with smbclient.open_file(r""+pathToFile, mode='r',encoding='latin1') as file:
+        data = file.read()
+        data = bytes(data, 'latin1')
+    # try:
+        # temp.write(data)
+        fileType = magic.from_buffer(data)
+        # fileType = magic.from_file(open(temp.name, "rb").read(2048))
+        # fileType = magic.from_file(temp.name)
+    # finally:
+        # temp.close()
+    return fileType
 
 def detectHeaderFile(pathToFile):
-    # fileType = magic.from_file(pathToFile)
-    temp = tempfile.NamedTemporaryFile(prefix='compare_tool')
-    with smbclient.open_file(r""+pathToFile, mode='r') as file:
-        data = file.read()
-        data = bytes(data, 'ascii')
-    try:
-        temp.write(data)
-        fileType = magic.from_file(temp.name)
-    finally:
-        temp.close()
+    fileType = magic.from_file(pathToFile)
     return fileType
 
 def fileExtension(pathToFile):
     split_tup = os.path.splitext(pathToFile)
     return split_tup[1]
 
+def checkPath(filePath, version):
+    x = filePath.split('\\')
+    versionPath = str(x[-1]).lower().replace('.','')
+    version = str(version).lower().replace('.','')
+    if version in versionPath:
+        return True
+    else:
+        return False
+    
+def saveExcelToSMB(src, desPath, name):
+    curent_year = datetime.date.today().strftime("%Y")
+    curent_month = datetime.date.today().strftime("%m")
+    listDir1 = smbclient.listdir(desPath)
+    
+    try:
+        with open(src, 'rb') as f1:
+            content = f1.read()
+        # List tất cả các thư mục bên trong thư mục hiện tại
+        if curent_year not in listDir1:
+            smbclient.mkdir(r"" + desPath + "\\" + curent_year)
+        listDeepPath1 = smbclient.listdir(desPath + "\\" + curent_year)
+        if ("Tháng " + curent_month) not in listDeepPath1:
+            smbclient.mkdir(r"" + desPath + "\\" + curent_year + "\\" + "Tháng " + curent_month)
+        listDeepPath2 = smbclient.listdir(desPath + "\\" + curent_year + "\\" + "Tháng " + curent_month)
+        listDeepPath2 = [item.lower() for item in listDeepPath2]
+        if name.lower() not in listDeepPath2:
+            smbclient.mkdir(r"" + desPath + "\\" + curent_year + "\\" + "Tháng " + curent_month + "\\" + name)
+        with smbclient.open_file(r"" + desPath + "\\" + curent_year + "\\" + "Tháng " + curent_month + "\\" + name + "\\" + src, mode = 'wb') as f2:
+            f2.write(content)
+            os.remove(src)
+    except Exception as e:
+        print(f"ERROR: {e}")
+    
 def checkFileType(fileExt, fileType):
-    textList = ['.js', '.css', '.cshtml', '.xml', 'html']
-    scriptFile = ['.sh', '.bash', '.bat', '.ps1']
-    otherList = ['.xls', '.xlsx', '.ods']
+    textList = ['.js', '.css', '.cshtml', '.html', '.xslt', '.txt', '.map', '.aspx', '.ascx'] #
+    scriptFile = ['.sh', '.bash', '.bat', '.ps1'] #
+    excelFile = ['.xls', '.xlsx', '.ods']   #
+    docFile = ['.doc', '.docx']         #
+    excutableFiles = ['.dll', '.exe']   #
+    fontType = ['.eot', '.woff', '.woff2', '.ttf', '.vfb']  #
+    xmlFile = ['.xml', '.resx', '.mrt', '.mrz', '.mdc', '.mdz'] #
+    imageFile = ['.png', '.svg', '.ico', '.svg', '.gif', '.jpg']  #
     fileType = str(fileType).lower()
+    fileExt = str(fileExt).lower()
+    if fileType == 'empty':
+        return 'Không phân tích được file'
     if fileExt in textList:
         if 'text' in fileType:
             return ''
@@ -247,20 +294,43 @@ def checkFileType(fileExt, fileType):
             return 'File Script'
         else:
             return 'File không đúng định dạng (so sánh với đuôi file)'
-    elif '.json' in fileExt or '.map' in fileExt:
-        if 'json' in fileType or 'text' in fileType:
-            return ''
-        else: 
-            return 'File không đúng định dạng (so sánh với đuôi file)'
-    elif 'dll' in fileExt:
+    elif fileExt in excutableFiles:
         if 'executable' in fileType:
             return ''
         else:
             return 'File không đúng định dạng (so sánh với đuôi file)'
-    elif fileExt in otherList:
-        if 'excel' in fileType or 'sheet' in fileType:
+    elif fileExt in excelFile:
+        if 'excel' in fileType or 'sheet' in fileType or 'microsoft' in fileType or 'document' in fileType:
             return ''
         else:
             return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif fileExt in docFile:
+        if 'document' in fileType or 'microsoft' in fileType:
+            return ''
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif fileExt in fontType:
+        if 'font' in fileType or 'opentype' in fileType:
+            return ''
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif fileExt in imageFile:
+        if 'image' in fileType or 'icon' in fileType:
+            return ''
+        elif fileExt == '.png' and fileType == 'data':
+            return ''
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif fileExt in xmlFile:
+        if 'xml' in fileType:
+            return ''
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif '.json' in fileExt or '.map' in fileExt:
+        if 'json' in fileType or 'text' in fileType:
+            return ''
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'
+    elif fileType == 'empty': return 'Không phân tích được file'
     else:
         return 'File có định dạng lạ'

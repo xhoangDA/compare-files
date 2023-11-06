@@ -73,14 +73,3 @@ class TermLoading():
             print('')
             self.__threadBlockEvent.wait()
             self.__threadBlockEvent.clear()
-
-if __name__ == '__main__':
-    animation: TermLoading = TermLoading()
-    animation.show('loading...', finish_message='Finished!✅', failed_message='Failed!❌😨😨')
-    time.sleep(3)
-    animation.failed = True
-    # loading again
-    time.sleep(1)
-    animation.show_loading()
-    time.sleep(3)
-    animation.finished = True
