@@ -156,10 +156,6 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
     # fieldNames = ["STT", version, "Tình trạng", "Dung lượng cũ (KB)", "Dung lượng mới (KB)", "Chênh lệch (B)", "Mục đích sử dụng", "Ghi chú"]
     fieldNames = ["STT", version, "Tình trạng", "Dung lượng cũ (KB)", "Dung lượng mới (KB)", "Chênh lệch (B)", "Mục đích sử dụng", "Ghi chú", "File extension", "Header file"]
     ws.append(fieldNames)
-    # Add row records to table
-    # for i in resultList:
-        # i.pop(-1)
-        # i.pop(-1)
     for k in resultList:
         ws.append(k)
 
