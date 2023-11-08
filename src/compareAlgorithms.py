@@ -118,7 +118,6 @@ def compareList(list1, list2):
 
     return result
 
-
 def countFiles(listFiles):
     return str(len(listFiles))
 
