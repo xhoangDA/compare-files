@@ -85,3 +85,5 @@ class arguments():
             parser.print_help()
             sys.exit(1)
         return argsList
+    
+    print("Demo")
