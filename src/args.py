@@ -86,4 +86,3 @@ class arguments():
             sys.exit(1)
         return argsList
     
-    print("Demo")

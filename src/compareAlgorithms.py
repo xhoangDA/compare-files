@@ -185,7 +185,7 @@ def writeToExcelFile(filesDir1, filesDir2, resultList, dir1, dir2, version, prod
     
     # Highligh suspicious files
     for i in range (5, ws.max_row+1):
-        if ws['H' + str(i)].value == 'Không phân tích được file':
+        if ws['H' + str(i)].value == 'Không phân tích được file' or ws['H' + str(i)].value == 'File text':
             for cell in ws[i]:
                 cell.fill = yellow_background
         elif ws['H' + str(i)].value != '':
@@ -266,7 +266,8 @@ def saveExcelToSMB(src, desPath, name):
         print(f"ERROR: {e}")
     
 def checkFileType(fileExt, fileType):
-    textList = ['.js', '.css', '.cshtml', '.html', '.xslt', '.txt', '.map', '.aspx', '.ascx'] #
+    codeFileList = ['.js', '.css', '.scss', '.cshtml', '.html', '.xslt', '.txt', '.map', '.aspx', '.ascx'] #
+    textList = ['.txt']
     scriptFile = ['.sh', '.bash', '.bat', '.ps1'] #
     excelFile = ['.xls', '.xlsx', '.ods']   #
     docFile = ['.doc', '.docx']         #
@@ -278,11 +279,16 @@ def checkFileType(fileExt, fileType):
     fileExt = str(fileExt).lower()
     if fileType == 'empty':
         return 'Không phân tích được file'
-    if fileExt in textList:
+    if fileExt in codeFileList:
         if 'text' in fileType:
             return ''
         else:
             return 'File không đúng định dạng (so sánh với đuôi file)'
+    if fileExt in textList:
+        if 'text' in fileType:
+            return 'File text'
+        else:
+            return 'File không đúng định dạng (so sánh với đuôi file)'        
     elif fileExt in scriptFile:
         if 'text' in fileType:
             return 'File Script'
